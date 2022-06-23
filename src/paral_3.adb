@@ -1,77 +1,71 @@
-
 with Ada.Text_IO, GNAT.Semaphores;
 use Ada.Text_IO, GNAT.Semaphores;
 
 with Ada.Containers.Indefinite_Doubly_Linked_Lists;
 use Ada.Containers;
 
-procedure Paral_3 is
-
+procedure Main is
    package String_Lists is new Indefinite_Doubly_Linked_Lists (String);
    use String_Lists;
-
-   procedure Starter (Storage_Size : in Integer; GItem_Numbers : in Integer) is
-      Storage : List;
-
-      access_stor : Counting_Semaphore (1, Default_Ceiling);
-      full_stor   : Counting_Semaphore (Storage_Size, Default_Ceiling);
-      empty_stor  : Counting_Semaphore (0, Default_Ceiling);
-
-      task type Producer(Item_Numbers : Integer);
-
-      task type Consumer(Item_Numbers : Integer);
-
-      task body Producer is
-      begin
-
-         for i in 1 .. Producer.Item_Numbers loop
-            full_stor.Seize;
-            access_stor.Seize;
-
-            Storage.Append ("item " & i'Img);
-            Put_Line ("Added item " & i'Img);
-
-            access_stor.Release;
-            empty_stor.Release;
-            delay 0.1;
+   
+   procedure ProducerConsumer(size, amountElems: Integer) is
+      storage: List;
+      
+      storage_access: Counting_Semaphore(1, Default_Ceiling);
+      storage_not_full : Counting_Semaphore(size, Default_Ceiling);
+      storage_not_empty : Counting_Semaphore(0, Default_Ceiling);
+      
+      task type producer is
+         entry start(id1: Integer);
+      end producer;
+      
+      task type consumer is
+         entry start(id1: Integer);
+      end consumer;
+      
+      task body producer is
+         id: Integer := 0;
+         begin
+         accept start(id1: Integer) do
+            id := id1;
+         end start;
+         for i in 1..amountElems loop
+            storage_not_full.Seize;
+            storage_access.Seize;
+            storage.Append("Product");
+            Put_Line("Producer" & Integer'Image(id) & " добавив товар.");
+            storage_not_empty.Release;
+            storage_access.Release;
+            delay 1.0;
          end loop;
-
-      end Producer;
-
-      task body Consumer is
-      begin
-
-         for i in 1 .. Consumer.Item_Numbers loop
-            empty_Stor.Seize;
-            access_stor.Seize;
-
-            declare
-               item : String := First_Element (Storage);
-            begin
-               Put_Line ("Took " & item);
-            end;
-
-            Storage.Delete_First;
-
-            access_stor.Release;
-            full_Stor.Release;
-
-            delay 0.2;
+      end producer;
+      
+      task body consumer is
+         id: Integer := 0;
+         begin
+         accept start(id1: Integer) do
+            id := id1;
+         end start;
+         for i in 1..amountElems loop
+            storage_not_empty.Seize;
+            storage_access.Seize;
+            storage.Delete_First;
+            Put_Line("Consumer" & Integer'Image(id) & " взяв товар.");
+            storage_not_full.Release;
+            storage_access.Release;
+            delay 1.0;
          end loop;
-
-      end Consumer;
-
-	t1: Consumer (GItem_Numbers);
-	t2: Consumer (GItem_Numbers);
-	t3: Consumer (GItem_Numbers);
-	t4: Producer (GItem_Numbers);
-	t5: Producer (GItem_Numbers);
-	t6: Producer (GItem_Numbers);
-
+      end consumer;
+      
+      producers: array(1..5) of producer;
+      consumers: array(1..5) of consumer;
+       
    begin
-      null;
-   end Starter;
-
+      for i in 1..5 loop
+         producers(i).start(id1 => i);
+         consumers(i).start(id1 => i);
+      end loop;
+   end ProducerConsumer;
 begin
-   Starter (4, 20);
-end Paral_3;
+   ProducerConsumer(3, 5);
+end Main;
